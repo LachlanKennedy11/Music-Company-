@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skyline Soundworks</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+        }
+        .text-custom-blue {
+            color: #2c3e50;
+        }
+        .bg-custom-blue {
+            background-color: #2c3e50;
+        }
+        .bg-custom-yellow {
+            background-color: #f39c12;
+        }
+        .border-custom-blue {
+            border-color: #2c3e50;
+        }
+        .text-custom-yellow {
+            color: #f39c12;
+        }
+        .bg-cream {
+            background-color: #faf9f6;
+        }
+        .section-heading {
+            position: relative;
+            display: inline-block;
+            margin-bottom: 2rem;
+        }
+        .section-heading::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: -8px;
+            width: 60px;
+            height: 3px;
+            background-color: #f39c12;
+        }
+        .message-box {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #faf9f6;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            text-align: center;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <!-- Header -->
+    <header class="bg-cream shadow-md sticky top-0 z-50">
+        <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <!-- Skyline Soundworks Logo -->
+                <img src="https://i.imgur.com/z83yDqU.png" alt="Skyline Soundworks Logo" class="h-10 w-10">
+                <span class="text-2xl font-bold text-custom-blue">Skyline Soundworks</span>
+            </div>
+            <div class="md:hidden">
+                <button id="menu-button" class="text-custom-blue focus:outline-none">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path>
+                    </svg>
+                </button>
+            </div>
+            <ul id="nav-menu" class="hidden md:flex md:space-x-8 font-semibold">
+                <li><a href="#about" class="text-custom-blue hover:text-custom-yellow transition-colors duration-300">About</a></li>
+                <li><a href="#services" class="text-custom-blue hover:text-custom-yellow transition-colors duration-300">Services</a></li>
+                <li><a href="#portfolio" class="text-custom-blue hover:text-custom-yellow transition-colors duration-300">Portfolio</a></li>
+                <li><a href="#contact" class="text-custom-blue hover:text-custom-yellow transition-colors duration-300">Contact</a></li>
+            </ul>
+        </nav>
+        <div id="mobile-menu" class="hidden md:hidden bg-cream shadow-lg py-4">
+            <ul class="flex flex-col items-center space-y-4">
+                <li><a href="#about" class="block py-2 text-custom-blue font-semibold hover:text-custom-yellow">About</a></li>
+                <li><a href="#services" class="block py-2 text-custom-blue font-semibold hover:text-custom-yellow">Services</a></li>
+                <li><a href="#portfolio" class="block py-2 text-custom-blue font-semibold hover:text-custom-yellow">Portfolio</a></li>
+                <li><a href="#contact" class="block py-2 text-custom-blue font-semibold hover:text-custom-yellow">Contact</a></li>
+            </ul>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main>
+        <!-- Hero Section -->
+        <section id="hero" class="bg-custom-blue text-white py-24 text-center">
+            <div class="container mx-auto px-6">
+                <h1 class="text-5xl md:text-6xl font-extrabold tracking-tight mb-4">Elevate Your Sound.</h1>
+                <p class="text-xl md:text-2xl font-light mb-8">High-quality music production and audio engineering.</p>
+                <a href="#contact" class="bg-custom-yellow text-custom-blue font-bold py-3 px-8 rounded-full shadow-lg hover:opacity-90 transition-opacity duration-300">
+                    Get in Touch
+                </a>
+            </div>
+        </section>
+
+        <!-- About Section -->
+        <section id="about" class="py-20 bg-gray-50">
+            <div class="container mx-auto px-6 text-center">
+                <h2 class="text-4xl font-bold text-custom-blue mb-2 section-heading">About Us</h2>
+                <p class="max-w-3xl mx-auto text-lg leading-relaxed mb-4">
+                    Skyline Soundworks is a full-service music production and audio engineering company committed to transforming your creative ideas into professional-grade sonic experiences. Founded on a passion for pristine audio and a dedication to artistic collaboration, we work with musicians, filmmakers, and content creators to craft the perfect sound for their projects.
+                </p>
+                <p class="max-w-3xl mx-auto text-lg leading-relaxed">
+                    Our team of experienced producers and engineers leverages a state-of-the-art studio environment and a deep understanding of audio dynamics to ensure every note, beat, and sound effect is captured and refined to perfection. We believe that great sound is the foundation of great art, and we are here to help you build that foundation.
+                </p>
+            </div>
+        </section>
+
+        <!-- Services Section -->
+        <section id="services" class="py-20">
+            <div class="container mx-auto px-6 text-center">
+                <h2 class="text-4xl font-bold text-custom-blue mb-12 section-heading">Our Services</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div class="bg-cream p-8 rounded-xl shadow-lg transform transition-transform duration-300 hover:scale-105">
+                        <h3 class="text-2xl font-bold text-custom-blue mb-4">Music Production</h3>
+                        <p class="text-gray-600">From initial song ideas and arrangements to final track completion, our producers guide you through every step of the creative process to achieve your musical vision.</p>
+                    </div>
+                    <div class="bg-cream p-8 rounded-xl shadow-lg transform transition-transform duration-300 hover:scale-105">
+                        <h3 class="text-2xl font-bold text-custom-blue mb-4">Mixing & Mastering</h3>
+                        <p class="text-gray-600">Our professional audio engineers use a blend of cutting-edge technology and a keen ear to balance and enhance your tracks, ensuring they sound powerful and polished on any platform.</p>
+                    </div>
+                    <div class="bg-cream p-8 rounded-xl shadow-lg transform transition-transform duration-300 hover:scale-105">
+                        <h3 class="text-2xl font-bold text-custom-blue mb-4">Sound Design</h3>
+                        <p class="text-gray-600">Create unique soundscapes and effects for film, video games, podcasts, and commercials. We design immersive audio that captures the imagination and tells your story.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Portfolio Section -->
+        <section id="portfolio" class="py-20 bg-gray-50">
+            <div class="container mx-auto px-6 text-center">
+                <h2 class="text-4xl font-bold text-custom-blue mb-12 section-heading">Portfolio</h2>
+                <p class="max-w-3xl mx-auto text-lg leading-relaxed mb-8">
+                    Explore some of the projects we've had the pleasure of working on. Click on an image to listen to a sample.
+                </p>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <div class="bg-cream rounded-xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl">
+                        <a href="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" target="_blank">
+                            <img src="https://placehold.co/600x400/2c3e50/f39c12?text=Urban+Echoes" alt="Urban Echoes album cover" class="w-full h-auto object-cover">
+                        </a>
+                        <div class="p-6">
+                            <h3 class="text-xl font-bold text-custom-blue">Urban Echoes</h3>
+                            <p class="text-gray-600 text-sm mt-2">Mixing and mastering for an up-and-coming electronic artist.</p>
+                        </div>
+                    </div>
+                    <div class="bg-cream rounded-xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl">
+                        <a href="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" target="_blank">
+                            <img src="https://placehold.co/600x400/f39c12/2c3e50?text=Night+Drive" alt="Night Drive cinematic score" class="w-full h-auto object-cover">
+                        </a>
+                        <div class="p-6">
+                            <h3 class="text-xl font-bold text-custom-blue">Night Drive</h3>
+                            <p class="text-gray-600 text-sm mt-2">Original score and sound design for a short film.</p>
+                        </div>
+                    </div>
+                    <div class="bg-cream rounded-xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl">
+                        <a href="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3" target="_blank">
+                            <img src="https://placehold.co/600x400/2c3e50/f39c12?text=City+Lights" alt="City Lights podcast series" class="w-full h-auto object-cover">
+                        </a>
+                        <div class="p-6">
+                            <h3 class="text-xl font-bold text-custom-blue">City Lights</h3>
+                            <p class="text-gray-600 text-sm mt-2">Audio clean-up and post-production for a popular podcast series.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Contact Section -->
+        <section id="contact" class="py-20">
+            <div class="container mx-auto px-6 text-center">
+                <h2 class="text-4xl font-bold text-custom-blue mb-12 section-heading">Contact Us</h2>
+                <p class="max-w-2xl mx-auto mb-8 text-lg">Ready to start your next project? Fill out the form below and we'll be in touch!</p>
+                <form id="contact-form" class="max-w-xl mx-auto bg-cream p-8 rounded-xl shadow-lg">
+                    <div class="mb-4 text-left">
+                        <label for="name" class="block text-gray-700 text-sm font-bold mb-2">Name</label>
+                        <input type="text" id="name" name="name" class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:shadow-outline border-custom-blue" required>
+                    </div>
+                    <div class="mb-4 text-left">
+                        <label for="email" class="block text-gray-700 text-sm font-bold mb-2">Email</label>
+                        <input type="email" id="email" name="email" class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:shadow-outline border-custom-blue" required>
+                    </div>
+                    <div class="mb-6 text-left">
+                        <label for="message" class="block text-gray-700 text-sm font-bold mb-2">Message</label>
+                        <textarea id="message" name="message" rows="4" class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:shadow-outline border-custom-blue" required></textarea>
+                    </div>
+                    <div class="flex items-center justify-center">
+                        <button type="submit" class="bg-custom-blue hover:opacity-90 text-white font-bold py-3 px-8 rounded-full focus:outline-none focus:shadow-outline transition-opacity duration-300">
+                            Send Message
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+    </main>
+    <div id="message-container"></div>
+    <!-- Footer -->
+    <footer class="bg-custom-blue text-white py-8 text-center">
+        <div class="container mx-auto px-6">
+            <p>&copy; 2024 Skyline Soundworks. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Interactive JavaScript -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const menuButton = document.getElementById('menu-button');
+            const mobileMenu = document.getElementById('mobile-menu');
+            const navLinks = document.querySelectorAll('#nav-menu a, #mobile-menu a');
+            const contactForm = document.getElementById('contact-form');
+            const messageContainer = document.getElementById('message-container');
+
+            // Toggle mobile menu visibility
+            menuButton.addEventListener('click', () => {
+                mobileMenu.classList.toggle('hidden');
+            });
+
+            // Handle smooth scrolling and close mobile menu
+            navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const targetId = link.getAttribute('href').substring(1);
+                    const targetSection = document.getElementById(targetId);
+                    
+                    if (targetSection) {
+                        window.scrollTo({
+                            top: targetSection.offsetTop - 64, // Offset for fixed header
+                            behavior: 'smooth'
+                        });
+                        mobileMenu.classList.add('hidden'); // Close menu on click
+                    }
+                });
+            });
+
+            // Handle form submission
+            contactForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                
+                const name = document.getElementById('name').value;
+                const email = document.getElementById('email').value;
+                const message = document.getElementById('message').value;
+
+                // Simple validation and success message using a custom message box
+                if (name && email && message) {
+                    const messageBox = document.createElement('div');
+                    messageBox.className = 'message-box';
+                    messageBox.innerHTML = `
+                        <p class="text-xl font-bold">Thank you, ${name}!</p>
+                        <p class="mt-2">Your message has been sent. We will get back to you shortly.</p>
+                        <button onclick="this.parentElement.remove()" class="mt-4 bg-custom-blue text-white font-bold py-2 px-4 rounded-full">OK</button>
+                    `;
+                    document.body.appendChild(messageBox);
+                    
+                    contactForm.reset();
+                }
+            });
+        });
+    </script>
+
+</body>
+</html>
