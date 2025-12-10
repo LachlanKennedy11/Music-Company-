@@ -1,1 +1,1241 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Draw-down Ticket Picker (Custom Background)</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Configure Tailwind -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        /* --- GLOBAL TEXT BOLDNESS AND FONT WEIGHT --- */
+        body, p, span, h1, h3, button, div {
+            font-weight: 700 !important;
+        }
+
+        /* --- BACKGROUND IMAGE AND OVERLAY --- */
+        /* The background image is set dynamically by JavaScript */
+        body {
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            position: relative;
+            min-height: 100vh;
+        }
+        
+        /* Dark Overlay for contrast and readability (60% OPACITY) */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6); /* 60% opaque dark overlay */
+            z-index: -1;
+        }
+
+        /* Custom styles for the number grid */
+        .number-grid {
+            display: grid;
+            grid-template-columns: repeat(10, minmax(0, 1fr));
+            gap: 4px;
+        }
+
+        @media (min-width: 640px) {
+            .number-grid {
+                grid-template-columns: repeat(15, minmax(0, 1fr));
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .number-grid {
+                grid-template-columns: repeat(25, minmax(0, 1fr));
+            }
+        }
+
+        .number-item {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 4px;
+            height: 30px;
+            font-size: 0.75rem;
+            cursor: default;
+            user-select: none;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        
+        /* State 0: Default/Available - Green */
+        .number-item.available {
+            background-color: #d1fae5;
+            color: #065f46;
+            border: 1px solid #10b981;
+            box-shadow: 0 0 0 1px #10b981 inset;
+        }
+
+        /* State 1: Fully Removed (Crossed out) - RED */
+        .number-item.selected {
+            text-decoration: line-through;
+            opacity: 0.5;
+            background-color: #fca5a5;
+            color: #b91c1c;
+            transform: scale(0.95);
+            border: none;
+            box-shadow: none;
+        }
+        
+        /* State 2: Kept - YELLOW */
+        .number-item.kept {
+            background-color: #facc15;
+            color: #713f12;
+            border: 3px solid #f59e0b;
+            opacity: 1;
+            text-decoration: none;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        /* State 3: Prize Tier (Permanent Highlight) - BLUE */
+        .number-item.prize-tier {
+            background-color: #60a5fa !important; 
+            color: #fff !important; 
+            border: 3px solid #1d4ed8 !important;
+            box-shadow: 0 4px 10px rgba(29, 78, 216, 0.5) !important;
+            transform: scale(1.05) !important;
+        }
+        
+        /* --- Animation for new pick --- */
+        @keyframes pick-flash {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(167, 139, 250, 0.6); }
+            50% { transform: scale(1.1); box-shadow: 0 0 15px 5px rgba(124, 58, 237, 0.8); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(167, 139, 250, 0); }
+        }
+
+        .pick-animation {
+            animation: pick-flash 0.4s ease-out;
+            z-index: 10;
+        }
+
+        /* Overlay Styles for Loading and Setup */
+        .app-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.4);\n            backdrop-filter: blur(8px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            transition: opacity 0.3s ease;
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8 font-sans">
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="app-overlay">
+        <div class="animate-spin rounded-full h-12 w-12 border-4 border-t-red-500 border-gray-200"></div>
+        <p id="loading-status" class="mt-4 text-lg text-red-600">Initializing Firebase...</p>
+    </div>
+    
+    <!-- Initial Choice Modal -->
+    <div id="initial-choice-modal" class="app-overlay hidden">
+        <div class="bg-white/40 backdrop-blur-md p-8 rounded-xl shadow-2xl max-w-lg w-full text-center border border-gray-200">
+            <h3 class="text-3xl text-red-600 mb-4">Hartselle Baseball Drawdown</h3>
+            <p class="text-md text-gray-600 mb-8">Please select how you want to access the board.</p>
+            
+            <div class="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 justify-center">
+                <button 
+                    class="px-8 py-4 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-xl shadow-md transition duration-200 active:scale-95 flex-1"
+                    onclick="window.handleViewBoard()">
+                    View Board (Read-Only)
+                </button>
+                <button 
+                    class="px-8 py-4 bg-red-500 hover:bg-red-600 text-white rounded-xl shadow-md transition duration-200 active:scale-95 flex-1"
+                    onclick="window.showAdminLoginModal()">
+                    Admin Login (Edit Board)
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Admin Authentication Modal (for login) -->
+    <div id="admin-auth-modal" class="app-overlay hidden">
+        <div class="bg-white/40 backdrop-blur-md p-8 rounded-xl shadow-2xl max-w-lg w-full text-center border border-gray-200">
+            <div class="p-4">
+                <h3 class="text-2xl text-red-600 mb-2">Admin Access Required</h3>
+                <p class="text-sm text-gray-500 mb-6">Log in to enable picking and board resets. (Example: admin@example.com / supersecret)</p>
+                
+                <input type="email" id="admin-email-input" placeholder="Admin Email" value="admin@example.example"
+                       class="w-full p-3 mb-3 border-2 border-gray-300 rounded-lg text-sm focus:ring-red-500 focus:border-red-500 transition" />
+                
+                <!-- Password Input with Visibility Toggle -->
+                <div class="relative mb-4">
+                    <input type="password" id="admin-password-input" placeholder="Password" value="supersecret"
+                           class="w-full p-3 pr-10 border-2 border-gray-300 rounded-lg text-sm focus:ring-red-500 focus:border-red-500 transition" />
+                    <button type="button" onclick="window.togglePasswordVisibility()" 
+                            class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 transition"
+                            aria-label="Toggle password visibility">
+                        <!-- Eye Icon (lucide-react 'eye-off' by default) -->
+                        <svg id="password-toggle-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.44-1.6"/><line x1="2" y1="2" x2="22" y2="22"/>
+                        </svg>
+                    </button>
+                </div>
+                       
+                <!-- Error Messaging -->
+                <p id="auth-error" class="text-red-600 bg-red-100 border border-red-300 p-2 rounded-lg mb-4 hidden text-xs"></p>
+                       
+                <button id="admin-login-button" 
+                        class="w-full px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl shadow-md transition duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                        onclick="window.handleAdminLogin()">
+                    Log In as Admin
+                </button>
+                
+                <button onclick="window.showInitialChoiceModal()" 
+                        class="mt-4 w-full px-6 py-3 bg-gray-200 text-gray-700 rounded-xl shadow-md hover:bg-gray-300 transition duration-200 active:scale-95">
+                    Cancel (Go Back)
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Main Application Container -->
+    <div id="app-container" class="max-w-6xl mx-auto bg-white/40 backdrop-blur-md shadow-xl rounded-2xl overflow-hidden hidden">
+        
+        <!-- Header and Controls (Now Red) -->
+        <header class="p-6 bg-red-700 text-white flex flex-col lg:flex-row justify-between items-start lg:items-center">
+            
+            <!-- Mascot and Title Area -->
+            <div class="flex items-center space-x-4 mb-4 lg:mb-0">
+                <!-- **CUSTOMIZATION POINT 1: LOGO IMAGE URL** -->
+                <img src="https://pbs.twimg.com/profile_images/1817357831432970240/9IsuxquW_400x400.jpg" 
+                     alt="Team Logo" 
+                     class="w-16 h-16 rounded-full border-4 border-yellow-300 shadow-lg object-cover"
+                     onerror="this.onerror=null; this.src='https://placehold.co/60x60/fcd34d/374151?text=LOGO+FAIL'">
+                
+                <div>
+                    <h1 class="text-4xl lg:text-5xl"> 
+                        Hartselle Baseball Drawdown
+                    </h1>
+                    <p class="text-lg text-yellow-300">Board ID: <span id="current-game-id">DRAWDOWN-MAIN-BOARD</span></p>
+                </div>
+            </div>
+            
+            <div class="flex flex-col space-y-3 lg:flex-row lg:space-y-0 lg:space-x-4">
+                <!-- Pick Count Display -->
+                <div class="text-right">
+                    <p class="text-sm opacity-80">Pick # / Total Clicks:</p>
+                    <p id="pick-count-display" class="text-4xl text-yellow-300 transition-all duration-300">
+                        --
+                    </p>
+                </div>
+
+                <!-- Control Buttons -->
+                <div class="flex flex-row space-x-3">
+                    <button id="undo-button" 
+                            class="px-3 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-xl shadow-lg transition-all duration-300 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed border-2 border-red-900"
+                            title="Undo Last Pick Cycle (Reverts board state and Pick #). The next pick will be the same number.">
+                        <!-- Undo Icon -->
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6.19 2.51L3 13"/><line x1="2" y1="2" x2="22" y2="22"/></svg>
+                    </button>
+
+                    <button id="select-button" 
+                            class="px-6 py-3 bg-white hover:bg-gray-200 text-black rounded-xl shadow-lg transition-all duration-300 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed border-2 border-red-900 flex-grow">
+                        Pick Next Number
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Status and Pick Count -->
+        <div class="p-6 border-b border-gray-100 flex flex-col lg:flex-row justify-between items-start lg:items-center text-sm space-y-3 lg:space-y-0">
+            <div class="flex items-center space-x-4">
+                <p id="owner-status" class="text-center py-1 px-3 rounded-full"></p>
+                <p class="text-gray-600">Available Numbers: <span id="available-count" class="text-red-600">500</span></p>
+            </div>
+            
+
+            <div class="flex items-center space-x-4">
+                 <p id="user-info" class="text-xs text-gray-500">
+                    <span id="auth-state" class="text-gray-800">...</span> | 
+                    Your Auth ID: <span id="user-id-display" class="font-mono">...</span>
+                </p>
+                <button id="admin-logout-button" class="text-gray-500 hover:text-red-500 transition duration-150 hidden" onclick="window.handleAdminLogout()">
+                    (Log Out)
+                </button>
+                <button id="reset-button" class="text-red-500 hover:text-red-700 transition duration-150 disabled:opacity-50 disabled:cursor-not-allowed" onclick="window.handleResetConfirmation()">
+                    Reset Board
+                </button>
+            </div>
+        </div>
+        
+        <!-- Background Control Panel (Admin Only) -->
+        <div id="background-control-panel" class="p-4 bg-gray-100/80 border-b border-gray-200 hidden">
+            <div class="flex justify-between items-center cursor-pointer" onclick="document.getElementById('background-config-area').classList.toggle('hidden');">
+                <h3 class="text-lg text-gray-700">Background Configuration (Admin Only)</h3>
+                <span class="text-red-500 text-xl font-bold">+</span>
+            </div>
+
+            <div id="background-config-area" class="hidden pt-4">
+                <label for="bg-url-input" class="block text-xs font-medium text-gray-600 mb-1">Paste Image URL (e.g., Unsplash link):</label>
+                <div class="flex space-x-2">
+                    <input type="url" id="bg-url-input" placeholder="https://images.unsplash.com/..."
+                           class="flex-grow p-2 border-2 border-gray-300 rounded-lg text-sm focus:ring-red-500 focus:border-red-500 transition" />
+                    <button onclick="window.saveBackgroundUrl()" 
+                            class="px-4 py-2 bg-red-500 text-white rounded-lg shadow-md hover:bg-red-600 transition active:scale-95">
+                        Save & Apply
+                    </button>
+                </div>
+                <p id="current-bg-url" class="text-xs text-gray-500 mt-2 truncate">Current URL: ...</p>
+                <p class="text-xs text-red-500 mt-1">Note: Use high-contrast images for best text visibility.</p>
+            </div>
+        </div>
+
+        <!-- Number Grid Container -->
+        <main class="p-6">
+            <div class="text-sm text-gray-500 mb-4">
+                <span class="text-green-700">Green:</span> Available, decision required. | 
+                <span class="text-yellow-700">Yellow:</span> Kept, picked again means permanent removal. | 
+                <span class="text-blue-700">Blue:</span> **$100 Prize Tier Winner!** (Permanent highlight, still in the running). | 
+                <span class="text-red-700">Red:</span> Permanently removed (cannot be picked again).
+            </div>
+            <div id="number-table" class="number-grid bg-gray-100 p-2 rounded-lg border border-gray-200">
+                <!-- Numbers will be injected here by JavaScript -->
+            </div>
+        </main>
+        
+        <!-- Message Box for Game Over -->
+        <div id="message-box" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50">
+            <div class="bg-white p-8 rounded-xl shadow-2xl max-w-sm text-center">
+                <svg class="w-12 h-12 text-green-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <h3 class="text-2xl text-gray-800 mb-2">All Numbers Removed!</h3>
+                <p class="text-gray-600 mb-6">The game is complete!</p>
+                <button onclick="document.getElementById('message-box').classList.add('hidden'); window.handleResetConfirmation();" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">Start Over</button>
+            </div>
+        </div>
+
+        <!-- Confirmation Modal for Reset -->
+        <div id="reset-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50">
+            <div class="bg-white/40 backdrop-blur-md p-6 rounded-xl shadow-2xl max-w-sm text-center">
+                <h3 class="text-xl text-red-600 mb-2">Confirm Board Reset</h3>
+                <p class="text-gray-600 mb-6">Are you sure you want to reset this board for **everyone**? This action cannot be undone.</p>
+                <div class="flex justify-center space-x-4">
+                    <button onclick="document.getElementById('reset-modal').classList.add('hidden')" 
+                            class="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition">
+                        Cancel
+                    </button>
+                    <button onclick="window.resetGame()" 
+                            class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition">
+                        Yes, Reset
+                    </button>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Decision Modal -->
+        <div id="decision-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50">
+            <div class="bg-white/40 backdrop-blur-md p-8 rounded-xl shadow-2xl max-w-md text-center">
+                <h3 class="text-2xl text-gray-800 mb-2">Decision Time!</h3>
+                <p class="text-gray-600 mb-6">The number <span id="decision-number" class="text-red-600 text-xl">--</span> has been picked. Do you want to **Keep** it (mark yellow) or **Remove** it (cross out)?</p>
+                <div class="flex justify-center space-x-4">
+                    <button id="keep-button" 
+                            class="px-6 py-3 bg-yellow-500 text-gray-900 rounded-lg shadow-md hover:bg-yellow-400 transition active:scale-95">
+                        Keep (Mark Yellow)
+                    </button>
+                    <button id="remove-button" 
+                            class="px-6 py-3 bg-red-500 text-white rounded-lg shadow-md hover:bg-red-600 transition active:scale-95">
+                        Remove (Cross Out)
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // =========================================================================
+        // !!! USER-PROVIDED FIREBASE CONFIG & GLOBAL CONSTANTS !!!
+        // -------------------------------------------------------------------------
+        const firebaseConfig = {
+            apiKey: "AIzaSyCf89wtrye4grXf0LY1cKO6GK0XIAqqVuU",
+            authDomain: "drawdown-ddfdf.firebaseapp.com",
+            projectId: "drawdown-ddfdf",
+            storageBucket: "drawdown-ddfdf.firebasestorage.app",
+            messagingSenderId: "949823482010",
+            appId: "1:949823482010:web:be78dd021b4c9fa9081723",
+            measurementId: "G-08WENN5YBW"
+        };
+        const appId = firebaseConfig.projectId;
+
+        // FIXED BOARD ID FOR SINGLE BOARD MODE
+        const GAME_ID = 'DRAWDOWN-MAIN-BOARD';
+        const GAME_DOC_PATH = `artifacts/${appId}/public/data/games/${GAME_ID}`;
+        
+        // **CUSTOMIZATION POINT 2: DEFAULT BACKGROUND IMAGE URL**
+        // Change the URL inside the single quotes to your desired default background image.
+        // If you are an Admin, you can also change this in the Background Configuration panel.
+        const DEFAULT_BG_URL = 'https://www.al.com/resizer/v2/PO5MAJV3EVHZDPYXQ765HU3PC4.JPG?auth=8ed904c6b9ce59a2a5dfb9f298e04f01e9733e9c104531bcc1259ac7a3565db1&width=1280&smart=true&quality=90';
+        // =========================================================================
+
+        // Global Firebase variables
+        let db, auth;
+        let userId = null; // The authenticated user's UID or anonymous ID
+        let isAdmin = null; // True if non-anonymous user and ownerId match
+        let unsubscribeFromSnapshot = null; 
+
+        // --- GAME CONSTANTS & STATE ---
+        const MAX_NUMBER = 500;
+        const MILESTONE_INTERVAL = 50; // Constant for the permanent prize tier interval
+        
+        let localState = {
+            fullySelectedNumbers: new Set(), // Numbers that are permanently removed (Red)
+            keptNumbers: new Set(), // Numbers that are temporarily saved (Yellow)
+            prizeTierWinners: new Set(), // NEW: Numbers that are permanently marked blue
+            lastPickedNumber: null,
+            ownerId: null, // ID of the user who is the admin
+            pickCount: 0, // Total times "Pick Next Number" has been clicked
+            backgroundUrl: DEFAULT_BG_URL, // NEW: Custom background image URL
+            stateHistory: [], // Store a history of past states for the undo function
+        };
+        
+        let lastPickedNumber = null; // Holds the number while modal is open
+        let lastUndoneNumber = null; // Holds the number to be re-picked after an undo
+
+        // --- DOM Elements ---
+        const elements = {
+            appContainer: document.getElementById('app-container'),
+            loadingOverlay: document.getElementById('loading-overlay'),
+            loadingStatus: document.getElementById('loading-status'),
+            table: document.getElementById('number-table'),
+            pickCountDisplay: document.getElementById('pick-count-display'),
+            button: document.getElementById('select-button'),
+            undoButton: document.getElementById('undo-button'), 
+            count: document.getElementById('available-count'),
+            messageBox: document.getElementById('message-box'),
+            resetButton: document.getElementById('reset-button'),
+            userIdDisplay: document.getElementById('user-id-display'),
+            decisionModal: document.getElementById('decision-modal'),
+            decisionNumberDisplay: document.getElementById('decision-number'),
+            keepButton: document.getElementById('keep-button'),
+            removeButton: document.getElementById('remove-button'),
+            resetModal: document.getElementById('reset-modal'),
+            ownerStatus: document.getElementById('owner-status'), 
+            
+            // Auth Elements
+            initialChoiceModal: document.getElementById('initial-choice-modal'), 
+            adminAuthModal: document.getElementById('admin-auth-modal'),
+            authState: document.getElementById('auth-state'),
+            adminLoginButton: document.getElementById('admin-login-button'),
+            adminLogoutButton: document.getElementById('admin-logout-button'),
+            adminEmailInput: document.getElementById('admin-email-input'),
+            adminPasswordInput: document.getElementById('admin-password-input'),
+            authError: document.getElementById('auth-error'),
+            passwordToggleIcon: document.getElementById('password-toggle-icon'),
+
+            // NEW Background Elements
+            body: document.body,
+            backgroundControlPanel: document.getElementById('background-control-panel'),
+            bgUrlInput: document.getElementById('bg-url-input'),
+            currentBgUrl: document.getElementById('current-bg-url'),
+        };
+        
+        // --- INITIAL ACCESS GATE FUNCTIONS ---
+
+        function showInitialChoiceModal() {
+            elements.adminAuthModal.classList.add('hidden');
+            elements.initialChoiceModal.classList.remove('hidden');
+        }
+        window.showInitialChoiceModal = showInitialChoiceModal;
+
+        function showAdminLoginModal() {
+            elements.initialChoiceModal.classList.add('hidden');
+            elements.adminAuthModal.classList.remove('hidden');
+        }
+        window.showAdminLoginModal = showAdminLoginModal;
+
+
+        /**
+         * Signs in anonymously and starts the main application flow as a viewer.
+         */
+        async function handleViewBoard() {\n            // Ensure background is applied immediately when entering viewer mode\n            applyBackground(DEFAULT_BG_URL);
+            elements.initialChoiceModal.classList.add('hidden');
+            elements.loadingStatus.textContent = "Connecting as Viewer...";
+            elements.loadingOverlay.classList.remove('hidden');
+
+            try {
+                // Ensure we are signed out of any previous sessions (like admin)
+                await signOut(auth).catch(e => console.warn("SignOut failed before anonymous sign-in, proceeding.", e));
+                
+                // Sign in anonymously
+                const result = await signInAnonymously(auth);
+                userId = result.user.uid;
+                updateAuthStateUI(result.user);
+                startRealTimeListener(); // Start the viewer's listener
+            } catch (error) {
+                console.error("View Board (Anonymous Sign-in) Failed:", error);
+                const status = document.getElementById('loading-status');
+                status.textContent = `Error connecting as viewer: ${error.message}`;
+                setTimeout(() => {
+                    elements.loadingOverlay.classList.add('hidden');
+                    showInitialChoiceModal(); 
+                }, 2000);
+            }
+        }
+        window.handleViewBoard = handleViewBoard;
+
+        // --- AUTHENTICATION HANDLERS ---
+        
+        /**
+         * Toggles the visibility of the password field.
+         */
+        function togglePasswordVisibility() {
+            const passwordInput = elements.adminPasswordInput;
+            const icon = elements.passwordToggleIcon;
+            
+            if (passwordInput.type === "password") {
+                passwordInput.type = "text";
+                // Change icon to 'eye' (visible)
+                icon.innerHTML = '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>';
+            } else {
+                passwordInput.type = "password";
+                // Change icon to 'eye-off' (hidden)
+                icon.innerHTML = '<path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.44-1.6"/><line x1="2" y1="2" x2="22" y2="22"/>';
+            }
+        }
+        window.togglePasswordVisibility = togglePasswordVisibility;
+
+
+        /**
+         * Handles the Admin Email/Password Login.
+         */
+        async function handleAdminLogin() {\n            // Ensure background is applied immediately when attempting admin login\n            applyBackground(DEFAULT_BG_URL);
+            elements.authError.classList.add('hidden');
+            elements.adminLoginButton.disabled = true;
+
+            const email = elements.adminEmailInput.value.trim();
+            const password = elements.adminPasswordInput.value.trim();
+
+            if (!email || !password) {
+                elements.authError.textContent = "Please enter both email and password.";
+                elements.authError.classList.remove('hidden');
+                elements.adminLoginButton.disabled = false;
+                return;
+            }
+
+            elements.adminAuthModal.classList.add('hidden'); // Hide modal immediately
+            elements.loadingStatus.textContent = "Logging in as Admin...";
+            elements.loadingOverlay.classList.remove('hidden');
+
+            try {
+                await signOut(auth).catch(e => console.warn("SignOut failed before admin sign-in, proceeding.", e));
+                const result = await signInWithEmailAndPassword(auth, email, password);
+                
+                userId = result.user.uid;
+                updateAuthStateUI(result.user);
+                startRealTimeListener();
+
+            } catch (error) {
+                console.error("Login Error:", error.code, error.message);
+                
+                let errorMessage = "Login Failed: An unknown error occurred.";
+
+                if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+                    errorMessage = "Login Failed: Invalid email or password.";
+                } else if (error.code === 'auth/invalid-email') {
+                    errorMessage = "Login Failed: The email address format is invalid.";
+                } else {
+                    errorMessage = `Login Failed: ${error.message}`;
+                }
+
+                elements.authError.textContent = errorMessage;
+                elements.authError.classList.remove('hidden');
+                elements.adminLoginButton.disabled = false;
+                elements.loadingOverlay.classList.add('hidden');
+                showAdminLoginModal(); 
+            }
+        }
+        window.handleAdminLogin = handleAdminLogin;
+
+        /**
+         * Handles the Admin Logout, reverting the user back to the initial choice.
+         */
+        async function handleAdminLogout() {
+            try {
+                if (unsubscribeFromSnapshot) {
+                    unsubscribeFromSnapshot();
+                    unsubscribeFromSnapshot = null;
+                }
+                
+                await signOut(auth);
+                
+                userId = null;
+                isAdmin = false;
+                lastUndoneNumber = null; // Clear queue on logout
+                elements.appContainer.classList.add('hidden');
+                elements.loadingOverlay.classList.add('hidden');
+                localState = { fullySelectedNumbers: new Set(), keptNumbers: new Set(), prizeTierWinners: new Set(), lastPickedNumber: null, ownerId: null, pickCount: 0, backgroundUrl: DEFAULT_BG_URL, stateHistory: [] };
+
+                // Re-apply default background
+                applyBackground(DEFAULT_BG_URL);
+
+                showInitialChoiceModal();
+
+            } catch (error) {
+                console.error("Logout Error:", error);
+            }
+        }
+        window.handleAdminLogout = handleAdminLogout;
+
+        /**
+         * Updates the UI based on the current user's authentication status.
+         */
+        function updateAuthStateUI(user) {
+            if (user && !user.isAnonymous) {
+                elements.userIdDisplay.textContent = user.uid;
+                elements.authState.textContent = `Admin (${user.email || 'UID'})`;
+                elements.authState.className = 'text-green-700'; 
+                elements.adminLogoutButton.classList.remove('hidden');
+            } else if (user && user.isAnonymous) {
+                elements.userIdDisplay.textContent = user.uid;
+                elements.authState.textContent = 'Viewer (Anonymous)';
+                elements.authState.className = 'text-yellow-700';
+                elements.adminLogoutButton.classList.add('hidden');
+            } else {
+                elements.authState.textContent = 'Unauthenticated';
+                elements.adminLogoutButton.classList.add('hidden');
+            }
+        }
+
+        // --- BACKGROUND IMAGE MANAGEMENT ---
+
+        /**
+         * Applies the given URL as the background image for the body.
+         */
+        function applyBackground(url) {
+            // Apply background image URL to the body's style property
+            elements.body.style.backgroundImage = `url('${url}')`;
+            elements.currentBgUrl.textContent = `Current URL: ${url}`;
+            localState.backgroundUrl = url;
+        }
+
+        /**
+         * Saves the URL from the input field to Firestore.
+         */
+        async function saveBackgroundUrl() {
+            if (!isAdmin) return;
+
+            const newUrl = elements.bgUrlInput.value.trim();
+            if (newUrl === "" || newUrl === localState.backgroundUrl) {
+                console.log("No change in background URL or input is empty.");
+                return;
+            }
+
+            try {
+                await saveStateUpdate({ backgroundUrl: newUrl });
+                // applyBackground will be called via the onSnapshot listener after save.
+                console.log("Background URL saved to Firestore.");
+            } catch (error) {
+                console.error("Failed to save background URL:", error);
+                // Optional: show a temporary error message in the UI
+            }
+        }
+        window.saveBackgroundUrl = saveBackgroundUrl;
+
+
+        // --- FIRESTORE UTILITY FUNCTIONS ---
+        
+        /**
+         * Creates a clean, serializable copy of the current state for history.
+         */
+        function createSerializableState(state) {
+            return {
+                fullySelectedNumbers: Array.from(state.fullySelectedNumbers),
+                keptNumbers: Array.from(state.keptNumbers),
+                prizeTierWinners: Array.from(state.prizeTierWinners),
+                lastPickedNumber: state.lastPickedNumber,
+                pickCount: state.pickCount,
+                ownerId: state.ownerId,
+                // Only save backgroundUrl if it's not the default (optional optimization)
+                backgroundUrl: state.backgroundUrl
+            };
+        }
+
+
+        /**
+         * Safely saves the *full* game state to Firestore (used for creation/reset/undo).
+         */
+        async function saveFullState(state, isCreation = false) {
+            if (!db || !userId || !state) {
+                console.error("Cannot save full game state: Firebase/User not initialized.");
+                throw new Error("Initialization or Path Error.");
+            }
+            
+            const isOwnerMatch = state.ownerId === userId;
+            const isLoggedInAdmin = auth.currentUser && !auth.currentUser.isAnonymous;
+            
+            // Security Check for full state save (creation/reset)
+            if (isCreation || elements.resetModal.classList.contains('hidden') === false) { 
+                 if (!isLoggedInAdmin || !isOwnerMatch) {
+                    console.error("Creation/Full State Save Failed: Must be a logged-in admin user setting themselves as the owner.");
+                    throw new Error("Creation Denied: Must be logged in as an admin to create/reset a board.");
+                }
+            }
+
+            elements.button.disabled = true;
+            elements.undoButton.disabled = true; // Disable undo during write
+            elements.resetButton.disabled = true;
+            try {
+                // Ensure Sets are converted back to Arrays for storage
+                const stateToSave = {
+                    ...state,
+                    fullySelectedNumbers: Array.from(state.fullySelectedNumbers),
+                    keptNumbers: Array.from(state.keptNumbers),
+                    prizeTierWinners: Array.from(state.prizeTierWinners), 
+                };
+                
+                // Do not save stateHistory to Firestore as it could exceed the document limit
+                delete stateToSave.stateHistory; 
+                
+                await setDoc(doc(db, GAME_DOC_PATH), stateToSave);
+                console.log(`Full game state saved successfully. (Creation: ${isCreation})`);
+            } catch (error) {
+                console.error("Error saving full game state:", error);
+                throw error; 
+            }
+        }
+
+        /**
+         * Safely merges an update payload into the existing Firestore document.
+         */
+        async function saveStateUpdate(updatePayload) {
+             if (!db || !isAdmin) {
+                 console.error("Cannot save state update: Admin/DB not ready.");
+                 throw new Error("Permission Denied.");
+             }
+             elements.button.disabled = true;
+             elements.undoButton.disabled = true; // Disable undo during write
+             elements.resetButton.disabled = true; // Also disable reset during update
+             try {
+                 // Use setDoc with { merge: true }
+                 await setDoc(doc(db, GAME_DOC_PATH), updatePayload, { merge: true });
+                 console.log("State update merged successfully.");
+             } catch (error) {
+                 console.error("Error saving game state update:", error);
+                 throw error; 
+             }
+        }
+        
+        function handleResetConfirmation() {
+            if (isAdmin) {
+                elements.resetModal.classList.remove('hidden');
+            } else {
+                elements.adminAuthModal.classList.remove('hidden');
+                console.warn("Non-admin user attempted to reset game, prompting login.");
+            }
+        }
+        window.handleResetConfirmation = handleResetConfirmation;
+
+        /**
+         * Resets the game state and saves it to Firestore.
+         * @param {boolean} isCreation - True if this is the very first time initializing the document.
+         */
+        async function resetGame(isCreation = false) {
+            if (!userId || (!isAdmin && !isCreation)) {
+                console.warn("Cannot reset game: Admin role or prerequisites missing.");
+                elements.resetModal.classList.add('hidden');
+                return;
+            }
+            
+            elements.resetModal.classList.add('hidden');
+            elements.messageBox.classList.add('hidden');
+            
+            lastUndoneNumber = null; // Clear queue on full reset
+
+            const initialState = {
+                fullySelectedNumbers: new Set(),
+                keptNumbers: new Set(),
+                prizeTierWinners: new Set(), 
+                lastPickedNumber: null,
+                ownerId: userId, // Set the current LOGGED-IN user as the owner
+                pickCount: 0, 
+                backgroundUrl: DEFAULT_BG_URL, // Reset to default image
+                stateHistory: [] // History is not saved to Firestore, but reset locally
+            };
+
+            try {
+                // The full state save is only for Firestore; localState.stateHistory remains local.
+                await saveFullState(initialState, isCreation); 
+                localState.stateHistory = []; // Ensure local history is cleared upon successful write
+                elements.bgUrlInput.value = DEFAULT_BG_URL; // Update input field
+                console.log('Game has been reset/created in Firestore.');
+            } catch (error) {
+                console.error("Reset attempt failed:", error);
+                elements.loadingOverlay.classList.add('hidden');
+                elements.appContainer.classList.remove('hidden');
+                const errorMessage = `Operation Failed! Check Firebase Security Rules. Error: ${error.message}`;
+                console.error(errorMessage);
+                elements.ownerStatus.textContent = "Error during Reset/Creation!";
+                elements.ownerStatus.className = "text-center py-1 px-3 rounded-full bg-red-100 text-red-700";
+            }
+        }
+        window.resetGame = resetGame;
+
+        // --- CORE GAME LOGIC (RUNS ON STATE CHANGE) ---
+        
+        function applyStateToUI(state) {
+            
+            if (!state || Object.keys(state).length === 0 || !state.ownerId) {
+                return; 
+            }
+            
+            // 1. Check if the incoming state is identical to the last one in history.
+            const incomingStateSerialized = JSON.stringify({ 
+                fullySelectedNumbers: state.fullySelectedNumbers, 
+                keptNumbers: state.keptNumbers, 
+                prizeTierWinners: state.prizeTierWinners,
+                lastPickedNumber: state.lastPickedNumber,
+                pickCount: state.pickCount,
+                backgroundUrl: state.backgroundUrl // Include new field in check
+            });
+
+            const currentHistoryStateSerialized = localState.stateHistory.length > 0 
+                ? JSON.stringify(createSerializableState(localState.stateHistory[localState.stateHistory.length - 1]))
+                : null;
+            
+            // 2. Update Local State from Firestore
+            localState.fullySelectedNumbers = new Set(state.fullySelectedNumbers || []);
+            localState.keptNumbers = new Set(state.keptNumbers || []);
+            localState.prizeTierWinners = new Set(state.prizeTierWinners || []); 
+            localState.pickCount = state.pickCount || 0;
+            localState.lastPickedNumber = typeof state.lastPickedNumber === 'number' ? state.lastPickedNumber : null;
+            localState.ownerId = state.ownerId;
+            localState.backgroundUrl = state.backgroundUrl || DEFAULT_BG_URL; // NEW: Get custom background
+
+            // 3. Save to History (if it's a new, committed state)
+            if (incomingStateSerialized !== currentHistoryStateSerialized) {
+                localState.stateHistory.push(createSerializableState(localState));
+                console.log(`History updated. New length: ${localState.stateHistory.length}`);
+            }
+
+            // 4. Update Admin Status
+            const user = auth.currentUser;
+            isAdmin = (user && !user.isAnonymous) && (userId === localState.ownerId);
+            
+            // 5. Update UI Controls based on Admin Status
+            elements.decisionModal.classList.add('hidden');
+            
+            elements.button.disabled = !isAdmin;
+            elements.resetButton.disabled = !isAdmin;
+            elements.undoButton.disabled = !isAdmin || localState.stateHistory.length <= 1; 
+
+            if (isAdmin) {
+                elements.ownerStatus.textContent = "You are the Game Owner (Admin)";
+                elements.ownerStatus.className = "text-center py-1 px-3 rounded-full bg-green-100 text-green-700";
+                elements.backgroundControlPanel.classList.remove('hidden'); // Show background panel for admin
+            } else {
+                const ownerText = localState.ownerId ? `Owner ID: ${localState.ownerId.substring(0, 8)}...` : 'Unknown Owner';
+                elements.ownerStatus.textContent = `Viewer Mode. ${ownerText}`;
+                elements.ownerStatus.className = "text-center py-1 px-3 rounded-full bg-yellow-100 text-yellow-700";
+                elements.backgroundControlPanel.classList.add('hidden'); // Hide for viewer
+            }
+            
+            // 6. NEW: Apply Background Image
+            applyBackground(localState.backgroundUrl);
+            elements.bgUrlInput.value = localState.backgroundUrl;
+
+            // 7. Render Grid and Status
+            renderNumberGrid();
+            
+            const removedCount = localState.fullySelectedNumbers.size;
+            const remaining = MAX_NUMBER - removedCount;
+            elements.count.textContent = remaining;
+            
+            // Update Pick Count Display
+            elements.pickCountDisplay.textContent = `${localState.lastPickedNumber || '--'} / ${localState.pickCount}`;
+            
+            // Highlight button if a number is queued for re-pick
+            if (lastUndoneNumber !== null) {
+                elements.button.textContent = `Re-pick Number ${lastUndoneNumber}`;
+                elements.button.classList.add('bg-blue-500', 'hover:bg-blue-600', 'text-white');
+                elements.button.classList.remove('bg-white', 'hover:bg-gray-200', 'text-black');
+            } else {
+                elements.button.textContent = 'Pick Next Number';
+                elements.button.classList.add('bg-white', 'hover:bg-gray-200', 'text-black');
+                elements.button.classList.remove('bg-blue-500', 'hover:bg-blue-600', 'text-white');
+            }
+
+
+            if (remaining === 0) {
+                elements.messageBox.classList.remove('hidden');
+                elements.button.disabled = true;
+                elements.undoButton.disabled = true;
+            } else {
+                elements.messageBox.classList.add('hidden');
+            }
+        }
+
+        function renderNumberGrid() {
+            // Initial render of the grid structure
+            if (elements.table.children.length === 0) {
+                for (let i = 1; i <= MAX_NUMBER; i++) {
+                    const item = document.createElement('div');
+                    item.id = `num-${i}`;
+                    item.className = 'number-item rounded-md ring-1 ring-gray-200';
+                    item.textContent = i;
+                    elements.table.appendChild(item);
+                }
+            }
+
+            // Apply styles based on current state
+            for (let i = 1; i <= MAX_NUMBER; i++) {
+                const item = document.getElementById(`num-${i}`);
+                if (!item) continue;
+                
+                // 1. Reset classes
+                item.className = 'number-item rounded-md'; 
+
+                // 2. Apply Base State (Red, Yellow, or Green)
+                if (localState.fullySelectedNumbers.has(i)) {
+                    item.classList.add('selected'); // Red (Permanently Removed)
+                } else if (localState.keptNumbers.has(i)) {
+                    item.classList.add('kept'); // Yellow (Kept)
+                } else {
+                    item.classList.add('available'); // Green (Available)
+                }
+                
+                // 3. Apply Blue Prize Tier Highlight (Permanent override if not removed)
+                if (localState.prizeTierWinners.has(i)) {
+                    // Blue overrides everything UNLESS the number has been permanently removed (Red)
+                    if (!localState.fullySelectedNumbers.has(i)) {
+                         // Clear existing state colors (kept/available) and apply blue
+                         item.classList.remove('kept', 'available'); 
+                         item.classList.add('prize-tier');
+                    }
+                }
+            }
+        }
+
+        // --- ADMIN ACTIONS (TRIGGER FIRESTORE WRITE) ---
+
+        async function selectNumber() {
+            if (!isAdmin) {
+                elements.adminAuthModal.classList.remove('hidden');
+                console.warn("Non-admin user attempted to pick a number, prompting login.");
+                return;
+            }
+            
+            elements.button.disabled = true; 
+            
+            let selected = null;
+            
+            // Check if a number is queued for re-pick
+            if (lastUndoneNumber !== null) {
+                selected = lastUndoneNumber;
+                lastUndoneNumber = null; // Clear the queue after use
+                console.log(`Re-picking queued number: ${selected}`);
+            } else {
+                // 1. Save current committed state (N-1) to history BEFORE the pick/change happens
+                localState.stateHistory.push(createSerializableState(localState));
+                elements.undoButton.disabled = true; // Will be re-enabled on snapshot update
+
+                // Filter: ONLY include numbers NOT in fullySelectedNumbers (Red numbers excluded).
+                const availablePicks = Array.from({ length: MAX_NUMBER }, (_, i) => i + 1).filter(num => {
+                    return !localState.fullySelectedNumbers.has(num);
+                });
+
+                if (availablePicks.length === 0) {
+                    elements.messageBox.classList.remove('hidden');
+                    elements.button.disabled = true;
+                    return;
+                }
+
+                const randomIndex = Math.floor(Math.random() * availablePicks.length);
+                selected = availablePicks[randomIndex];
+            }
+
+
+            flashNumber(selected);
+
+            // 2. Increment pick count for this action
+            const newPickCount = localState.pickCount + 1;
+            lastPickedNumber = selected; // Store for the modal/decision handler
+            
+            // 3. Check for Milestone and update Prize Winners
+            const isMilestonePick = newPickCount > 0 && newPickCount % MILESTONE_INTERVAL === 0;
+            const newPrizeTierWinners = new Set(localState.prizeTierWinners); 
+
+            if (isMilestonePick) {
+                // The picked number becomes a permanent Blue Prize Winner
+                newPrizeTierWinners.add(selected);
+                console.log(`Milestone reached! Number ${selected} is a permanent Blue Prize Tier Winner.`);
+            }
+
+            // 4. Check for automatic removal (Yellow -> Red)
+            if (localState.keptNumbers.has(selected)) {
+                // RULE: Yellow numbers, when picked, automatically turn Red.
+                console.log(`Number ${selected} was Kept (Yellow), automatically removing it.`);
+                
+                // If automatic removal, call handleDecision which saves the full state change including pickCount/Prize Winners
+                await handleDecision(selected, 'remove', newPickCount, newPrizeTierWinners); 
+            } else {
+                // 5. The number is Available (Green/Blue. Require Admin decision.
+                
+                // Save the incremented pick count, last picked number, AND the updated prize winners list
+                await saveStateUpdate({
+                    pickCount: newPickCount,
+                    lastPickedNumber: selected,
+                    prizeTierWinners: Array.from(newPrizeTierWinners)
+                });
+                
+                // Then, show the modal for the decision
+                showDecisionModal(selected);
+            }
+        }
+        window.selectNumber = selectNumber;
+        
+        function flashNumber(selected) {
+            const pickDisplay = elements.pickCountDisplay;
+            
+            // Update the display to show the newly picked number and the new total count
+            const newPickCount = localState.pickCount + 1; 
+            pickDisplay.textContent = `${selected} / ${newPickCount}`;
+
+            pickDisplay.classList.remove('text-yellow-300');
+            pickDisplay.classList.add('text-red-300'); // Changed flash color for contrast
+            setTimeout(() => {
+                pickDisplay.classList.remove('text-red-300');
+                pickDisplay.classList.add('text-yellow-300');
+            }, 300);
+
+            const numberElement = document.getElementById(`num-${selected}`);
+            if (numberElement) {
+                numberElement.classList.remove('pick-animation'); 
+                void numberElement.offsetWidth;
+                numberElement.classList.add('pick-animation');
+            }
+        }
+
+        function showDecisionModal(selected) {
+            elements.decisionNumberDisplay.textContent = selected;
+            elements.decisionModal.classList.remove('hidden');
+        }
+
+        async function handleDecision(selected, action, autoPickCount = null, autoPrizeWinners = null) {
+            if (!isAdmin) return;
+
+            elements.button.disabled = true;
+            
+            // Start with the current state's Sets (which were updated by the snapshot listener)
+            const newFullySelected = new Set(localState.fullySelectedNumbers);
+            const newKept = new Set(localState.keptNumbers);
+            
+            if (action === 'keep') {
+                // Green/Blue -> Yellow (Keep)
+                newKept.add(selected);
+                newFullySelected.delete(selected); // Should already be absent, but ensures cleanliness
+            } else if (action === 'remove') {
+                // Yellow -> Red (Automatic) OR Green/Blue -> Red (Manual)
+
+                // 1. Remove from Kept list if it was there
+                newKept.delete(selected);
+                
+                // 2. Add to Fully Selected (Red) list
+                newFullySelected.add(selected);
+            }
+            
+            // Determine the pick count and prize winners to save. 
+            const finalPickCount = autoPickCount !== null ? autoPickCount : localState.pickCount;
+            const finalPrizeWinners = autoPrizeWinners !== null ? autoPrizeWinners : localState.prizeTierWinners;
+
+            // Prepare update payload
+            const updatePayload = {
+                fullySelectedNumbers: Array.from(newFullySelected),
+                keptNumbers: Array.from(newKept),
+                prizeTierWinners: Array.from(finalPrizeWinners), // Use the determined set
+                lastPickedNumber: selected,
+                pickCount: finalPickCount, 
+            };
+
+            try {
+                 await saveStateUpdate(updatePayload);
+            } catch (error) {
+                 console.error("Failed to apply decision to Firestore:", error);
+            }
+
+            lastPickedNumber = null;
+            elements.decisionModal.classList.add('hidden');
+        }
+        
+        /**
+         * Reverts the game state to the state saved before the last pick cycle.
+         */
+        async function undoLastAction() {
+            if (!isAdmin || localState.stateHistory.length <= 1) {
+                console.warn("Undo failed: Not admin or insufficient history available.");
+                elements.undoButton.disabled = true;
+                return;
+            }
+            
+            elements.undoButton.disabled = true; // Immediately disable to prevent double-click
+
+            // 1. Identify the number from the state being discarded (State N)
+            const stateToDiscard = localState.stateHistory[localState.stateHistory.length - 1];
+            
+            if (stateToDiscard && stateToDiscard.lastPickedNumber) {
+                lastUndoneNumber = stateToDiscard.lastPickedNumber; // Queue the number for re-pick
+                console.log(`Undo successful. Number ${lastUndoneNumber} queued for the next pick.`);
+            }
+            
+            // 2. Discard the current state (State N, the result of the last action)
+            localState.stateHistory.pop(); 
+            
+            // 3. Retrieve the previous state (State N-1, the state *before* the last pick)
+            const stateToRestore = localState.stateHistory[localState.stateHistory.length - 1]; 
+            
+            if (stateToRestore) {
+                console.log(`Undoing last pick. Reverting board to Pick Count ${stateToRestore.pickCount}.`);
+                
+                // 4. Overwrite the Firestore document with the previous state data
+                await saveFullState(stateToRestore);
+                
+                // The onSnapshot listener will handle re-enabling controls and redrawing the board.
+            } else {
+                console.error("Error retrieving state from history during undo. Clearing local history.");
+                localState.stateHistory = [];
+                lastUndoneNumber = null; // Clear queue
+                elements.undoButton.disabled = true; 
+            }
+        }
+        window.undoLastAction = undoLastAction;
+
+        // Add event listeners for the decision buttons
+        if (elements.keepButton) {
+            elements.keepButton.addEventListener('click', () => {
+                if (lastPickedNumber !== null) handleDecision(lastPickedNumber, 'keep');
+            });
+        }
+        if (elements.removeButton) {
+            elements.removeButton.addEventListener('click', () => {
+                if (lastPickedNumber !== null) handleDecision(lastPickedNumber, 'remove');
+            });
+        }
+        
+        // --- Initialization and Event Listeners ---
+        
+        function initializeFirebase() {
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                
+                setLogLevel('debug'); 
+                
+                elements.loadingOverlay.classList.add('hidden');
+                
+                // Apply default background immediately while waiting for auth/data
+                applyBackground(DEFAULT_BG_URL);
+
+                showInitialChoiceModal();
+
+            } catch (error) {
+                console.error("Firebase Initialization Error:", error);
+                elements.loadingOverlay.innerHTML = `
+                    <div class="text-center p-6 bg-red-100 rounded-xl shadow-lg border-4 border-red-500 max-w-lg">
+                        <p class="text-xl text-red-700">Initialization Failed</p>
+                        <p class="text-base text-red-600 mb-4">The application failed to initialize Firebase.</p>
+                        <p class="text-xs mt-3 text-gray-500">Error: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        function startRealTimeListener() {
+            if (unsubscribeFromSnapshot) {
+                unsubscribeFromSnapshot();
+            }
+
+            const gameDocRef = doc(db, GAME_DOC_PATH);
+
+            unsubscribeFromSnapshot = onSnapshot(gameDocRef, async (docSnapshot) => {
+                elements.loadingOverlay.classList.add('hidden');
+                elements.appContainer.classList.remove('hidden');
+
+                if (docSnapshot.exists()) {
+                    const remoteState = docSnapshot.data();
+                    applyStateToUI(remoteState);
+                    console.log("Game state updated from network.");
+                } else {
+                    elements.loadingStatus.textContent = "Board not found. Checking admin status for creation...";
+                    
+                    if (auth.currentUser && !auth.currentUser.isAnonymous) {
+                        try {
+                            await resetGame(true); 
+                            console.log("Initial board creation attempt successful.");
+                        } catch (e) {
+                             console.error("Initial Game Creation Failed:", e.message);
+                             const errorMessage = `Board Not Found: Failed to create the initial board document. Ensure the user is an authenticated admin. Error: ${e.message}`;
+                             elements.ownerStatus.textContent = "Error: Failed to create board!";
+                             elements.ownerStatus.className = "text-center py-1 px-3 rounded-full bg-red-100 text-red-700";
+                        }
+                    } else {
+                        console.warn("Board does not exist. Viewer cannot create it. Waiting for Admin.");
+                        elements.ownerStatus.textContent = "Board Empty/Uninitialized. Waiting for Admin...";
+                        elements.ownerStatus.className = "text-center py-1 px-3 rounded-full bg-red-100 text-red-700";
+                        elements.button.disabled = true;
+                        elements.resetButton.disabled = true;
+                        elements.undoButton.disabled = true;
+                    }
+                }
+            }, (error) => {
+                console.error("Firestore real-time listener failed:", error);
+                elements.loadingOverlay.innerHTML = `
+                    <div class="text-center p-6 bg-red-100 rounded-xl shadow-lg border-4 border-red-500 max-w-lg">
+                        <p class="text-xl text-red-700">CONNECTION ERROR</p>
+                        <p class="text-base text-red-600 mb-4">Could not read from board ID: ${GAME_ID}. Check network connection and security rules. (Error: ${error.code})</p>
+                    </div>
+                `;
+                elements.loadingOverlay.classList.remove('hidden');
+                elements.appContainer.classList.add('hidden');
+            });
+        }
+        
+        window.onload = function() {
+            // 1. Initialize Firebase, which immediately shows the choice modal
+            initializeFirebase();
+            
+            // 2. Set up event listeners for main actions
+            if (elements.button) {
+                elements.button.addEventListener('click', selectNumber);
+            }
+            if (elements.undoButton) {
+                elements.undoButton.addEventListener('click', undoLastAction);
+            }
+        };
+
+    </script>
+</body>
+</html>
